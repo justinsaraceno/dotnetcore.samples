@@ -14,6 +14,7 @@
         {
             // Enable to app to read json setting files
             var builder = new ConfigurationBuilder()
+                .SetBasePath(Path.GetFullPath(Directory.GetCurrentDirectory()))
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
             // build the configuration
@@ -26,25 +27,26 @@
             // Azure service bus namespace
             var namespaceUrl = configuration["ServiceBus:NamespaceUrl"];
 
-            // Create the AMQP connection string
-            var connnectionString = $"amqps://{policyName}:{key}@{namespaceUrl}/";
+            // Create the AMQP address (see https://github.com/Azure/amqpnetlite/issues/138 for format explination)
+            var address = new Address(configuration["ServiceBus:NamespaceUrl"], 443, configuration["ServiceBus:PolicyName"], configuration["ServiceBus:Key"], "/$servicebus/websocket", "WSS");
 
-            // Create the AMQP connection
-            var connection = new Connection(new Address(connnectionString));
+            // Create connection via Connection Factory using a websocket transport provider
+            ConnectionFactory connectionFactory = new ConnectionFactory(new TransportProvider[] {new WebSocketTransportFactory()});
+            var connection = connectionFactory.CreateAsync(address).Result;
 
             // Create the AMQP session
             var amqpSession = new Session(connection);
 
             // Give a name to the sender
-            var senderSubscriptionId = "codeityourself.amqp.sender";
+            var senderSubscriptionId = "vmslight.amqp.sender";
             // Give a name to the receiver
-            var receiverSubscriptionId = "codeityourself.amqp.receiver";
+            var receiverSubscriptionId = "vmslight.amqp.receiver";
 
             // Name of the topic you will be sending messages
-            var topic = "codeityourself";
+            var topic = "vmslight";
 
             // Name of the subscription you will receive messages from
-            var subscription = "codeityourself.listener";
+            var subscription = "vmslight.listener";
 
             // Create the AMQP sender
             var sender = new SenderLink(amqpSession, senderSubscriptionId, topic);
